@@ -11,31 +11,38 @@ from skimage.transform import resize
 from skimage.feature import hog
 from skimage import exposure
 
-# Caminho para o diretório do dataset
-dataset_path = "cats-breads"
+# Diretórios contendo as imagens
+persian_dir = "cats-breads\Persian"
+siamese_dir = "cats-breads\Siamese"
 
-# Obtém uma lista de todos os subdiretórios no diretório do dataset
-class_dirs = [d for d in os.listdir(dataset_path) if os.path.isdir(os.path.join(dataset_path, d))]
+# Lista de rótulos das raças de gatos
+races = ["Persian", "Siamese"]
 
-all_images = []
-all_labels = []
+# Listas para armazenar as imagens e rótulos
+images = []
+labels = []
 
-# Para cada diretório de classe, carrega as imagens e cria os rótulos
-for i, class_dir in enumerate(class_dirs):
-    class_path = os.path.join(dataset_path, class_dir)
-    class_images = [Image.open(os.path.join(class_path, filename)) for filename in os.listdir(class_path)]
-    class_labels = [i] * len(class_images)  # Rótulo é o índice do diretório de classe
-    all_images.extend(class_images)
-    all_labels.extend(class_labels)
+# Função para percorrer um diretório e atribuir rótulos
+def process_directory(directory, label):
+    for file_name in os.listdir(directory):
+        image_path = os.path.join(directory, file_name)
+        if os.path.isfile(image_path):
+            image = Image.open(image_path)
+            images.append(image)
+            labels.append(label)
 
-# Mistura as imagens e rótulos
-combined = list(zip(all_images, all_labels))
-random.shuffle(combined)
-all_images, all_labels = zip(*combined)
+# Percorre o diretório dos gatos persas e atribui o rótulo "Persian"
+process_directory(persian_dir, 0)
 
-# Separa os dados em conjuntos de treinamento e teste
-train_images, test_images, train_labels, test_labels = train_test_split(all_images, all_labels, test_size=0.3,
-                                                                        stratify=all_labels)
+# Percorre o diretório dos gatos siameses e atribui o rótulo "Siamese"
+process_directory(siamese_dir, 1)
+
+# Agora você tem as imagens e os rótulos prontos para o treinamento do modelo
+# Você pode usar as listas "images" e "labels" para extrair as características HOG e treinar o modelo SVM
+
+
+train_images, test_images, train_labels, test_labels = train_test_split(images, labels, test_size=0.3, random_state=42)
+
 
 # Definição dos parâmetros para o cálculo das características HOG
 orientations = 10
@@ -51,11 +58,8 @@ def extract_hog_features(image):
     hog_features = hog(resized_image, orientations=orientations, pixels_per_cell=pixels_per_cell, cells_per_block=cells_per_block, block_norm='L2-Hys')
     return hog_features
 
-
 # Exibe as características HOG de uma imagem do conjunto de treinamento
-
-
-image = train_images[51]
+image = train_images[40]
 hog_features = extract_hog_features(image)
 
 fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(8, 4))
@@ -68,18 +72,14 @@ plt.show()
 
 
 
-# Calcule o HOG das imagens de treinamento e teste
 train_hog_features = np.array([extract_hog_features(image) for image in train_images])
 test_hog_features = np.array([extract_hog_features(image) for image in test_images])
 
-# Ajuste os parâmetros de um modelo SVM usando as características HOG das imagens de treinamento
 svm_model = svm.SVC()
 svm_model.fit(train_hog_features, train_labels)
-
-# Utilize o SVM treinado para classificar o conjunto de testes
 predictions = svm_model.predict(test_hog_features)
 
  # Avalie a acurácia do modelo
 accuracy = np.mean(predictions == test_labels)
-print(f"Acurácia do modelo SVM: {accuracy}")
+print(f"Acurácia do modelo SVM: {accuracy * 100:.2f}%")
  
