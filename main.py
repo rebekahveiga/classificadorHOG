@@ -8,6 +8,8 @@ from skimage.feature import hog
 from skimage import color, exposure
 from sklearn import svm
 from skimage.transform import resize
+from skimage.feature import hog
+from skimage import exposure
 
 # Caminho para o diretório do dataset
 dataset_path = "cats-breads"
@@ -36,41 +38,39 @@ train_images, test_images, train_labels, test_labels = train_test_split(all_imag
                                                                         stratify=all_labels)
 
 # Definição dos parâmetros para o cálculo das características HOG
-orientations = 9
-pixels_per_cell = (8, 8)
-cells_per_block = (2, 2)
+orientations = 10
+pixels_per_cell = (4, 4)
+cells_per_block = (4, 4)
+img_lenght = 80
 
 # Função para extrair as características HOG de uma imagem em escala de cinza
 def extract_hog_features(image):
     image = image.convert("RGB")  # Converter a imagem para o modo RGB
     image_gray = color.rgb2gray(np.array(image))  # Converter para um array numpy
-    hog_features, hog_image = hog(image_gray, orientations=orientations, pixels_per_cell=pixels_per_cell, cells_per_block=cells_per_block, visualize=True)
-    hog_image = exposure.rescale_intensity(hog_image, in_range=(0, 10))
-    return hog_features, hog_image
+    resized_image = resize(image_gray, (img_lenght, img_lenght))
+    hog_features = hog(resized_image, orientations=orientations, pixels_per_cell=pixels_per_cell, cells_per_block=cells_per_block, block_norm='L2-Hys')
+    return hog_features
+
 
 # Exibe as características HOG de uma imagem do conjunto de treinamento
+
+
 image = train_images[51]
-hog_features, hog_image = extract_hog_features(image)
+hog_features = extract_hog_features(image)
 
 fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(8, 4))
 ax1.axis('off')
 ax1.imshow(image, cmap='gray')
 ax1.set_title('Imagem de treinamento')
-ax2.axis('off')
-ax2.imshow(hog_image, cmap='gray')
+ax2.bar(range(len(hog_features)), hog_features)
 ax2.set_title('Características HOG')
 plt.show()
 
-# Calcule o HOG das imagens de treinamento e teste
-train_hog_features = []
-for train_image in train_images:
-    train_hog_feature, _ = extract_hog_features(train_image)
-    train_hog_features.append(train_hog_feature)
 
-test_hog_features = []
-for test_image in test_images:
-    test_hog_feature, _ = extract_hog_features(test_image)
-    test_hog_features.append(test_hog_feature)
+
+# Calcule o HOG das imagens de treinamento e teste
+train_hog_features = np.array([extract_hog_features(image) for image in train_images])
+test_hog_features = np.array([extract_hog_features(image) for image in test_images])
 
 # Ajuste os parâmetros de um modelo SVM usando as características HOG das imagens de treinamento
 svm_model = svm.SVC()
@@ -79,6 +79,7 @@ svm_model.fit(train_hog_features, train_labels)
 # Utilize o SVM treinado para classificar o conjunto de testes
 predictions = svm_model.predict(test_hog_features)
 
-# Avalie a acurácia do modelo
+ # Avalie a acurácia do modelo
 accuracy = np.mean(predictions == test_labels)
 print(f"Acurácia do modelo SVM: {accuracy}")
+ 
